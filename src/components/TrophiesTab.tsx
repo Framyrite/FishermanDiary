@@ -1,9 +1,43 @@
-"use client";
+﻿"use client";
 
+import { useState } from "react";
+import { api } from "@/lib/api";
 import { formatDate, formatLength, formatWeight } from "@/lib/format";
 import type { Trophy } from "@/types/domain";
 
-export function TrophiesTab({ trophies, onAddTrophy }: { trophies: Trophy[]; onAddTrophy: () => void }) {
+export function TrophiesTab({
+  trophies,
+  onAddTrophy,
+  onEditTrophy,
+  onChanged,
+}: {
+  trophies: Trophy[];
+  onAddTrophy: () => void;
+  onEditTrophy: (trophy: Trophy) => void;
+  onChanged: () => void;
+}) {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function deleteTrophy(trophy: Trophy) {
+    const name = trophy.species?.name ?? "этот трофей";
+    const confirmed = window.confirm(`Удалить ${name}? Это действие нельзя отменить.`);
+
+    if (!confirmed) return;
+
+    setDeletingId(trophy.id);
+
+    try {
+      await api(`/api/trophies?id=${encodeURIComponent(trophy.id)}`, {
+        method: "DELETE",
+      });
+      await onChanged();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Не удалось удалить трофей");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div className="stack">
       <section className="card">
@@ -42,6 +76,20 @@ export function TrophiesTab({ trophies, onAddTrophy }: { trophies: Trophy[]; onA
               </div>
 
               {trophy.note && <p className="small-text">{trophy.note}</p>}
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button className="btn secondary small" onClick={() => onEditTrophy(trophy)} type="button">
+                  Изменить
+                </button>
+                <button
+                  className="btn secondary small"
+                  disabled={deletingId === trophy.id}
+                  onClick={() => deleteTrophy(trophy)}
+                  type="button"
+                >
+                  {deletingId === trophy.id ? "Удаляю..." : "Удалить"}
+                </button>
+              </div>
             </div>
           </article>
         ))

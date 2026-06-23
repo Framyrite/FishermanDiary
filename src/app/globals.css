@@ -107,3 +107,24 @@ button { cursor: pointer; }
   .grid-2 { grid-template-columns: 1fr; }
   .trophy-photo { height: 190px; }
 }
+
+select.input,
+select.input option {
+  background: #12251d;
+  color: #f2fff7;
+}
+
+select.input option:checked,
+select.input option:hover {
+  background: #1f6f4d;
+  color: #ffffff;
+}
+
+input[type="date"] {
+  color-scheme: dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.85;
+}

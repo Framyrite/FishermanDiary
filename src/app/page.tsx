@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { AddTrophyForm } from "@/components/AddTrophyForm";
 import { BottomNav, type TabKey } from "@/components/BottomNav";
 import { Modal } from "@/components/Modal";
@@ -11,86 +11,89 @@ import { TrophiesTab } from "@/components/TrophiesTab";
 import { api } from "@/lib/api";
 import type { FishSpecies, FriendSummary, ProfileStats, RecordItem, Trophy, UserProfile } from "@/types/domain";
 
-type MeResponse = { user: UserProfile; stats: ProfileStats; friends: FriendSummary[] };
-type SpeciesResponse = { species: FishSpecies[] };
-type TrophiesResponse = { trophies: Trophy[] };
-type RecordsResponse = { records: RecordItem[] };
+const APP_TITLE = "Дневник рыбака";
+const APP_SUBTITLE = "Трофеи, виды и рекорды";
+const ADD_TROPHY_TITLE = "Добавить трофей";
+const EDIT_TROPHY_TITLE = "Изменить трофей";
+const LOADING_TEXT = "Загружаю дневник...";
+const START_ERROR_TEXT = "Не удалось запустить приложение";
+const TRY_AGAIN_TEXT = "Попробовать снова";
+const FISH_ICON = "🐟";
 
-function getFriendIdFromLaunch() {
-  if (typeof window === "undefined") return null;
-
-  const params = new URLSearchParams(window.location.search);
-  const direct = params.get("friend");
-  if (direct) return direct;
-
-  const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
-  if (startParam?.startsWith("friend_")) return startParam.replace("friend_", "");
-
-  return null;
-}
+type MeResponse = {
+  user: UserProfile;
+  stats: ProfileStats;
+  friends: FriendSummary[];
+};
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabKey>("profile");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showTrophyModal, setShowTrophyModal] = useState(false);
-
   const [me, setMe] = useState<MeResponse | null>(null);
   const [species, setSpecies] = useState<FishSpecies[]>([]);
   const [trophies, setTrophies] = useState<Trophy[]>([]);
   const [records, setRecords] = useState<RecordItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showTrophyModal, setShowTrophyModal] = useState(false);
+  const [editingTrophy, setEditingTrophy] = useState<Trophy | null>(null);
 
-  const loadAll = useCallback(async () => {
-    const [meData, speciesData, trophiesData, recordsData] = await Promise.all([
+  async function auth() {
+    const telegram = typeof window !== "undefined" ? window.Telegram?.WebApp : undefined;
+    telegram?.ready();
+    telegram?.expand();
+
+    const initData = telegram?.initData ?? "";
+
+    await api("/api/auth/telegram", {
+      method: "POST",
+      body: JSON.stringify({ initData }),
+    });
+  }
+
+  async function loadAll() {
+    const [meData, speciesData, trophyData, recordData] = await Promise.all([
       api<MeResponse>("/api/me"),
-      api<SpeciesResponse>("/api/species"),
-      api<TrophiesResponse>("/api/trophies"),
-      api<RecordsResponse>("/api/records"),
+      api<{ species: FishSpecies[] }>("/api/species"),
+      api<{ trophies: Trophy[] }>("/api/trophies"),
+      api<{ records: RecordItem[] }>("/api/records"),
     ]);
 
     setMe(meData);
     setSpecies(speciesData.species);
-    setTrophies(trophiesData.trophies);
-    setRecords(recordsData.records);
-  }, []);
+    setTrophies(trophyData.trophies);
+    setRecords(recordData.records);
+  }
 
   useEffect(() => {
     async function boot() {
       try {
         setLoading(true);
         setError(null);
-
-        const tg = window.Telegram?.WebApp;
-        tg?.ready();
-        tg?.expand();
-
-        await api("/api/auth/telegram", {
-          method: "POST",
-          body: JSON.stringify({ initData: tg?.initData ?? "" }),
-        });
-
-        const friendId = getFriendIdFromLaunch();
-        if (friendId) {
-          await api("/api/friends/add", {
-            method: "POST",
-            body: JSON.stringify({ friendId }),
-          }).catch(() => null);
-        }
-
+        await auth();
         await loadAll();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Не удалось запустить приложение");
+        setError(err instanceof Error ? err.message : START_ERROR_TEXT);
       } finally {
         setLoading(false);
       }
     }
 
     boot();
-  }, [loadAll]);
+  }, []);
+
+  function openAddTrophy() {
+    setEditingTrophy(null);
+    setShowTrophyModal(true);
+  }
+
+  function closeTrophyModal() {
+    setEditingTrophy(null);
+    setShowTrophyModal(false);
+  }
 
   async function refreshAndCloseTrophyModal() {
     await loadAll();
-    setShowTrophyModal(false);
+    closeTrophyModal();
     setActiveTab("trophies");
   }
 
@@ -98,40 +101,41 @@ export default function Home() {
     return (
       <main className="loader">
         <div>
-          <div className="logo" style={{ margin: "0 auto 14px" }}>🐟</div>
-          <h1>Клюнуло</h1>
-          <p className="muted">Готовлю твой рыбацкий профиль...</p>
+          <div className="logo" style={{ margin: "0 auto 14px" }}>{FISH_ICON}</div>
+          <h1>{APP_TITLE}</h1>
+          <p className="muted">{LOADING_TEXT}</p>
         </div>
       </main>
     );
   }
 
-  if (error || !me) {
+  if (error) {
     return (
-      <main className="app-shell">
-        <div className="card stack">
-          <div className="logo">🐟</div>
-          <h1>Не запустилось</h1>
-          <div className="error">{error ?? "Нет данных профиля"}</div>
-          <p className="muted small-text">
-            Если ты запускаешь локально — проверь .env.local и NEXT_PUBLIC_DEV_MODE=true. Если из Telegram — проверь TELEGRAM_BOT_TOKEN и настройки mini app.
-          </p>
+      <main className="loader">
+        <div>
+          <div className="logo" style={{ margin: "0 auto 14px" }}>{FISH_ICON}</div>
+          <h1>{APP_TITLE}</h1>
+          <p className="muted">{error}</p>
+          <button className="btn" type="button" onClick={loadAll}>
+            {TRY_AGAIN_TEXT}
+          </button>
         </div>
       </main>
     );
   }
+
+  if (!me) return null;
 
   return (
     <main className="app-shell">
-      <header className="header">
+      <header className="app-header">
         <div className="brand">
-          <div className="logo">🐟</div>
+          <div className="logo">{FISH_ICON}</div>
           <div>
-            <h1>Клюнуло</h1>
-            <p>Трофейник рыбака</p>
+            <h1>{APP_TITLE}</h1>
+            <p>{APP_SUBTITLE}</p>
           </div>
         </div>
-        <span className="badge">MVP</span>
       </header>
 
       {activeTab === "profile" && (
@@ -139,24 +143,38 @@ export default function Home() {
           user={me.user}
           stats={me.stats}
           friends={me.friends}
-          onAddTrophy={() => setShowTrophyModal(true)}
+          onAddTrophy={openAddTrophy}
           onGoSpecies={() => setActiveTab("species")}
         />
       )}
 
-      {activeTab === "trophies" && <TrophiesTab trophies={trophies} onAddTrophy={() => setShowTrophyModal(true)} />}
+      {activeTab === "trophies" && (
+        <TrophiesTab
+          trophies={trophies}
+          onAddTrophy={openAddTrophy}
+          onEditTrophy={(trophy) => {
+            setShowTrophyModal(false);
+            setEditingTrophy(trophy);
+          }}
+          onChanged={loadAll}
+        />
+      )}
 
       {activeTab === "species" && (
-        <SpeciesTab species={species} onChanged={loadAll} onAddTrophy={() => setShowTrophyModal(true)} />
+        <SpeciesTab
+          species={species}
+          onChanged={loadAll}
+          onAddTrophy={openAddTrophy}
+        />
       )}
 
       {activeTab === "records" && <RecordsTab records={records} />}
 
       <BottomNav active={activeTab} onChange={setActiveTab} />
 
-      {showTrophyModal && (
-        <Modal title="Добавить трофей" onClose={() => setShowTrophyModal(false)}>
-          <AddTrophyForm species={species} onCreated={refreshAndCloseTrophyModal} />
+      {(showTrophyModal || editingTrophy) && (
+        <Modal title={editingTrophy ? EDIT_TROPHY_TITLE : ADD_TROPHY_TITLE} onClose={closeTrophyModal}>
+          <AddTrophyForm species={species} initialTrophy={editingTrophy} onCreated={refreshAndCloseTrophyModal} />
         </Modal>
       )}
     </main>
