@@ -1,9 +1,17 @@
-import { formatWeight } from "@/lib/format";
+﻿import { formatWeight } from "@/lib/format";
 
 type TrophyRow = {
   weight_grams: number | null;
-  species?: { name?: string | null } | null;
+  species?: { name?: string | null } | { name?: string | null }[] | null;
 };
+
+function getSpeciesName(species: TrophyRow["species"]) {
+  if (Array.isArray(species)) {
+    return species[0]?.name ?? "Рыба";
+  }
+
+  return species?.name ?? "Рыба";
+}
 
 export function bestTrophyLabel(trophies: TrophyRow[]): string | null {
   const best = trophies
@@ -11,5 +19,6 @@ export function bestTrophyLabel(trophies: TrophyRow[]): string | null {
     .sort((a, b) => (b.weight_grams ?? 0) - (a.weight_grams ?? 0))[0];
 
   if (!best) return null;
-  return `${best.species?.name ?? "Рыба"} — ${formatWeight(best.weight_grams)}`;
+
+  return `${getSpeciesName(best.species)} — ${formatWeight(best.weight_grams)}`;
 }
