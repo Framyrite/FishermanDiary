@@ -1,7 +1,9 @@
 "use client";
 
-import { initials } from "@/lib/format";
-import type { FriendSummary, ProfileStats, UserProfile } from "@/types/domain";
+import { AppIcon } from "@/components/AppIcon";
+import { FishImage } from "@/components/FishImage";
+import { initials, formatDate, formatLength, formatWeight } from "@/lib/format";
+import type { FriendSummary, ProfileStats, Trophy, UserProfile } from "@/types/domain";
 
 function inviteLink(userId: string) {
   const bot = process.env.NEXT_PUBLIC_BOT_USERNAME;
@@ -15,12 +17,14 @@ export function ProfileTab({
   user,
   stats,
   friends,
+  latestTrophy,
   onAddTrophy,
   onGoSpecies,
 }: {
   user: UserProfile;
   stats: ProfileStats;
   friends: FriendSummary[];
+  latestTrophy?: Trophy | null;
   onAddTrophy: () => void;
   onGoSpecies: () => void;
 }) {
@@ -32,43 +36,63 @@ export function ProfileTab({
 
   return (
     <div className="stack">
-      <section className="card">
-        <div className="header" style={{ marginBottom: 12 }}>
-          <div className="brand">
-            <div className="avatar">
-              {user.avatar_url ? <img src={user.avatar_url} alt="" /> : initials(user.first_name ?? user.username)}
-            </div>
-            <div>
-              <h1>{user.first_name || user.username || "Рыбак"}</h1>
-              <p>@{user.username || "telegram"}</p>
-            </div>
+      <section className="card profile-card">
+        <div className="profile-head">
+          <div className="avatar xl-avatar">
+            {user.avatar_url ? <img src={user.avatar_url} alt="" /> : initials(user.first_name ?? user.username)}
+          </div>
+          <div className="profile-name">
+            <h1>{user.first_name || user.username || "Рыбак"}</h1>
+            <p>@{user.username || "telegram"}</p>
           </div>
         </div>
 
-        <div className="grid-2">
-          <div className="stat">
-            <div className="value">
-              {stats.caught_species_count} / {stats.species_total}
-            </div>
-            <div className="label">видов поймано</div>
-          </div>
+        <div className="stat-row premium-stat-row">
           <div className="stat">
             <div className="value">{stats.trophies_count}</div>
-            <div className="label">трофеев</div>
+            <div className="label">Трофеев</div>
+          </div>
+          <div className="stat">
+            <div className="value">{stats.caught_species_count}</div>
+            <div className="label">Видов поймано</div>
           </div>
           <div className="stat">
             <div className="value">{stats.records_count}</div>
-            <div className="label">рекордов</div>
-          </div>
-          <div className="stat">
-            <div className="value">🏆</div>
-            <div className="label">{stats.best_trophy ?? "трофеев пока нет"}</div>
+            <div className="label">Рекордов</div>
           </div>
         </div>
 
-        <div className="grid-2" style={{ marginTop: 14 }}>
+        <div className="hero-trophy">
+          <div className="hero-trophy-title">Последний трофей</div>
+          {latestTrophy ? (
+            <div className="hero-trophy-row">
+              <div className="hero-trophy-photo">
+                {latestTrophy.photo_url ? (
+                  <img src={latestTrophy.photo_url} alt={latestTrophy.species?.name ?? "Трофей"} />
+                ) : (
+                  <FishImage name={latestTrophy.species?.name} imageUrl={latestTrophy.species?.image_url} />
+                )}
+              </div>
+              <div>
+                <div className="hero-trophy-name">{latestTrophy.species?.name ?? "Рыба"}</div>
+                <div className="hero-trophy-meta">
+                  {formatWeight(latestTrophy.weight_grams)}
+                  {latestTrophy.length_cm ? ` · ${formatLength(latestTrophy.length_cm)}` : ""}
+                  <br />
+                  {formatDate(latestTrophy.date_caught)}
+                  {latestTrophy.place_name ? ` · ${latestTrophy.place_name}` : ""}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="muted small-text">Трофеев пока нет. Добавь первый улов.</div>
+          )}
+        </div>
+
+        <div className="profile-actions">
           <button className="btn" onClick={onAddTrophy} type="button">
-            + Трофей
+            <AppIcon name="plus" size={17} />
+            Добавить трофей
           </button>
           <button className="btn secondary" onClick={onGoSpecies} type="button">
             Отметить вид
@@ -76,12 +100,12 @@ export function ProfileTab({
         </div>
       </section>
 
-      <section className="card stack">
+      <section className="card stack friend-card">
         <div className="section-title" style={{ margin: 0 }}>
           <h2>Друзья</h2>
           <span className="badge">{friends.length}</span>
         </div>
-        <button className="btn secondary" onClick={copyInvite} type="button">
+        <button className="btn secondary full" onClick={copyInvite} type="button">
           Скопировать ссылку-приглашение
         </button>
 

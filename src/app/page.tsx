@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { AddTrophyForm } from "@/components/AddTrophyForm";
@@ -18,9 +18,8 @@ const EDIT_TROPHY_TITLE = "Изменить трофей";
 const LOADING_TEXT = "Загружаю дневник...";
 const START_ERROR_TEXT = "Не удалось запустить приложение";
 const TRY_AGAIN_TEXT = "Попробовать снова";
-const FISH_ICON = "🐟";
 
-type MeResponse = {
+ type MeResponse = {
   user: UserProfile;
   stats: ProfileStats;
   friends: FriendSummary[];
@@ -101,7 +100,7 @@ export default function Home() {
     return (
       <main className="loader">
         <div>
-          <div className="logo" style={{ margin: "0 auto 14px" }}>{FISH_ICON}</div>
+          <div className="logo" style={{ margin: "0 auto 14px" }}>🐟</div>
           <h1>{APP_TITLE}</h1>
           <p className="muted">{LOADING_TEXT}</p>
         </div>
@@ -113,7 +112,7 @@ export default function Home() {
     return (
       <main className="loader">
         <div>
-          <div className="logo" style={{ margin: "0 auto 14px" }}>{FISH_ICON}</div>
+          <div className="logo" style={{ margin: "0 auto 14px" }}>🐟</div>
           <h1>{APP_TITLE}</h1>
           <p className="muted">{error}</p>
           <button className="btn" type="button" onClick={loadAll}>
@@ -130,7 +129,7 @@ export default function Home() {
     <main className="app-shell">
       <header className="app-header">
         <div className="brand">
-          <div className="logo">{FISH_ICON}</div>
+          <div className="logo">🐟</div>
           <div>
             <h1>{APP_TITLE}</h1>
             <p>{APP_SUBTITLE}</p>
@@ -143,6 +142,7 @@ export default function Home() {
           user={me.user}
           stats={me.stats}
           friends={me.friends}
+          latestTrophy={trophies[0] ?? null}
           onAddTrophy={openAddTrophy}
           onGoSpecies={() => setActiveTab("species")}
         />

@@ -1,8 +1,19 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { api } from "@/lib/api";
 import type { FishSpecies, Trophy } from "@/types/domain";
+
+function isValidNumber(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  return /^\d+([,.]\d+)?$/.test(trimmed);
+}
+
+function normalizeNumberInput(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") return "";
+  return value.trim().replace(",", ".");
+}
 
 export function AddTrophyForm({
   species,
@@ -28,12 +39,29 @@ export function AddTrophyForm({
       const formEl = event.currentTarget;
       const formData = new FormData(formEl);
       const speciesId = String(formData.get("species_id") || "");
+      const weight = String(formData.get("weight_grams") || "");
+      const length = String(formData.get("length_cm") || "");
 
       if (!speciesId) {
         setError("Выбери вид рыбы");
         setPending(false);
         return;
       }
+
+      if (!isValidNumber(weight)) {
+        setError("Вес должен быть числом. Например: 2500 или 2500,5");
+        setPending(false);
+        return;
+      }
+
+      if (!isValidNumber(length)) {
+        setError("Длина должна быть числом. Например: 56 или 56,5");
+        setPending(false);
+        return;
+      }
+
+      formData.set("weight_grams", normalizeNumberInput(formData.get("weight_grams")));
+      formData.set("length_cm", normalizeNumberInput(formData.get("length_cm")));
 
       await api(isEdit ? `/api/trophies?id=${initialTrophy?.id}` : "/api/trophies", {
         method: isEdit ? "PATCH" : "POST",
@@ -65,16 +93,18 @@ export function AddTrophyForm({
             setPhotoName(file?.name || "");
           }}
         />
-        <label className="btn secondary" htmlFor="trophy-photo" style={{ width: "fit-content" }}>
-          Выбрать фото
-        </label>
-        <span className="muted small-text">
-          {photoName || (initialTrophy?.photo_url ? "Фото уже добавлено" : "Фото не выбрано")}
-        </span>
+        <div className="photo-field-row">
+          <label className="btn secondary small" htmlFor="trophy-photo">
+            Выбрать фото
+          </label>
+          <span className="muted small-text">
+            {photoName || (initialTrophy?.photo_url ? "Фото уже добавлено" : "Фото не выбрано")}
+          </span>
+        </div>
       </label>
 
       <label className="field">
-        <span>Рыба *</span>
+        <span>Рыба <b className="required-star">*</b></span>
         <select className="input" name="species_id" defaultValue={initialTrophy?.species_id || ""}>
           <option value="" disabled>
             Выбери вид
@@ -90,7 +120,7 @@ export function AddTrophyForm({
       <div className="form-grid">
         <label className="field">
           <span>Вес, граммы</span>
-          <input className="input" name="weight_grams" inputMode="numeric" placeholder="2500" defaultValue={initialTrophy?.weight_grams ?? ""} />
+          <input className="input" name="weight_grams" inputMode="decimal" placeholder="2500" defaultValue={initialTrophy?.weight_grams ?? ""} />
         </label>
 
         <label className="field">
@@ -136,7 +166,7 @@ export function AddTrophyForm({
         </select>
       </label>
 
-      <button className="btn" disabled={pending} type="submit">
+      <button className="btn full" disabled={pending} type="submit">
         {pending ? "Сохраняю..." : isEdit ? "Сохранить изменения" : "Сохранить трофей"}
       </button>
     </form>

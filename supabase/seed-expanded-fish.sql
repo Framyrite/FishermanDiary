@@ -1,5 +1,5 @@
--- Initial fish catalog. Run after schema.sql.
-
+-- Expanded fish catalog for FishermanDiary.
+-- Safe to run multiple times. Existing trophies/marks are not deleted.
 
 insert into public.fish_species (name, category, image_url, description) values
   ('Щука', 'Пресноводные · Хищники', null, 'Классический пресноводный хищник.'),
