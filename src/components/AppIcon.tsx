@@ -1,5 +1,7 @@
 export type AppIconName =
+  | "home"
   | "profile"
+  | "friends"
   | "trophy"
   | "fish"
   | "records"
@@ -11,7 +13,15 @@ export type AppIconName =
   | "bait"
   | "eye"
   | "calendar"
-  | "check";
+  | "check"
+  | "bell"
+  | "weight"
+  | "star"
+  | "search"
+  | "sliders"
+  | "more"
+  | "medal"
+  | "copy";
 
 export function AppIcon({ name, size = 20, className = "" }: { name: AppIconName; size?: number; className?: string }) {
   const common = {
@@ -24,11 +34,40 @@ export function AppIcon({ name, size = 20, className = "" }: { name: AppIconName
     "aria-hidden": true,
   };
 
+  if (name === "bell") {
+    return (
+      <svg {...common}>
+        <path d="M18.4 15.5V11a6.4 6.4 0 0 0-12.8 0v4.5L4.2 18h15.6l-1.4-2.5Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+        <path d="M9.5 20.2c.6.8 1.4 1.2 2.5 1.2s1.9-.4 2.5-1.2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (name === "home") {
+    return (
+      <svg {...common}>
+        <path d="M4.5 10.8 12 4.5l7.5 6.3v8.1a1.8 1.8 0 0 1-1.8 1.8H6.3a1.8 1.8 0 0 1-1.8-1.8v-8.1Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+        <path d="M9.4 20.7v-6.1h5.2v6.1" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
   if (name === "profile") {
     return (
       <svg {...common}>
         <path d="M12 12.4a4.2 4.2 0 1 0 0-8.4 4.2 4.2 0 0 0 0 8.4Z" stroke="currentColor" strokeWidth="1.75" />
         <path d="M4.7 20.2c.8-3.8 3.3-5.8 7.3-5.8s6.5 2 7.3 5.8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (name === "friends") {
+    return (
+      <svg {...common}>
+        <path d="M9.6 11.7a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" strokeWidth="1.75" />
+        <path d="M3.8 20c.7-3.5 2.7-5.4 5.8-5.4s5.1 1.9 5.8 5.4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+        <path d="M16.4 11.6a2.9 2.9 0 1 0-.9-5.6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+        <path d="M16.4 14.6c2.2.4 3.5 2.1 3.9 5.1" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
       </svg>
     );
   }
@@ -56,9 +95,69 @@ export function AppIcon({ name, size = 20, className = "" }: { name: AppIconName
   if (name === "records") {
     return (
       <svg {...common}>
-        <path d="M5 19V9.5M12 19V5M19 19v-7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-        <path d="M4 19h16" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-        <path d="M5 9.5l4.2 2.8L12 5l3.5 4 3.5 3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M12 4.5 14.2 9l4.9.7-3.6 3.4.9 4.9-4.4-2.4L7.6 18l.9-4.9-3.6-3.4 4.9-.7L12 4.5Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (name === "star") {
+    return (
+      <svg {...common}>
+        <path d="M12 4.2 14.5 9l5.3.8-3.8 3.8.9 5.3-4.9-2.5-4.9 2.5.9-5.3-3.8-3.8L9.5 9 12 4.2Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (name === "weight") {
+    return (
+      <svg {...common}>
+        <path d="M8 9.5h8l1.7 10H6.3l1.7-10Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+        <path d="M9.2 9.5a2.8 2.8 0 1 1 5.6 0" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (name === "search") {
+    return (
+      <svg {...common}>
+        <path d="M10.8 17.1a6.3 6.3 0 1 0 0-12.6 6.3 6.3 0 0 0 0 12.6Z" stroke="currentColor" strokeWidth="1.75" />
+        <path d="m15.5 15.5 4 4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (name === "sliders") {
+    return (
+      <svg {...common}>
+        <path d="M4 7h9M17 7h3M4 17h3M11 17h9M4 12h4M12 12h8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+        <path d="M15 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM9 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM10 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" stroke="currentColor" strokeWidth="1.75" />
+      </svg>
+    );
+  }
+
+  if (name === "more") {
+    return (
+      <svg {...common}>
+        <path d="M6 12h.01M12 12h.01M18 12h.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (name === "medal") {
+    return (
+      <svg {...common}>
+        <path d="M9 4h6l-1.2 4.2H10.2L9 4Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+        <path d="M12 20a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11Z" stroke="currentColor" strokeWidth="1.75" />
+        <path d="M12 12.2v4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (name === "copy") {
+    return (
+      <svg {...common}>
+        <path d="M8 8.5h10.5v10.5H8V8.5Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+        <path d="M5.5 15.5V5.5h10" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }

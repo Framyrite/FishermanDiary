@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AddTrophyForm } from "@/components/AddTrophyForm";
 import { BottomNav, type TabKey } from "@/components/BottomNav";
+import { FriendsTab } from "@/components/FriendsTab";
 import { Modal } from "@/components/Modal";
 import { ProfileTab } from "@/components/ProfileTab";
 import { RecordsTab } from "@/components/RecordsTab";
@@ -19,14 +20,33 @@ const LOADING_TEXT = "Загружаю дневник...";
 const START_ERROR_TEXT = "Не удалось запустить приложение";
 const TRY_AGAIN_TEXT = "Попробовать снова";
 
- type MeResponse = {
+function normalized(value?: string | null) {
+  return (value ?? "").trim().toLowerCase().replaceAll("ё", "е");
+}
+
+function isCaspianName(name?: string | null) {
+  const value = normalized(name);
+  return value.includes("каспий") || ["вобла", "кутум", "шемая", "тюлька"].includes(value);
+}
+
+function isVisibleSpecies(fish: FishSpecies) {
+  const category = normalized(fish.category);
+  return !category.includes("каспий") && !isCaspianName(fish.name) && normalized(fish.name) !== "карась";
+}
+
+function isVisibleRecord(record: RecordItem) {
+  const category = normalized(record.category);
+  return !category.includes("каспий") && !isCaspianName(record.species_name) && normalized(record.species_name) !== "карась";
+}
+
+type MeResponse = {
   user: UserProfile;
   stats: ProfileStats;
   friends: FriendSummary[];
 };
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<TabKey>("profile");
+  const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [me, setMe] = useState<MeResponse | null>(null);
   const [species, setSpecies] = useState<FishSpecies[]>([]);
   const [trophies, setTrophies] = useState<Trophy[]>([]);
@@ -125,8 +145,10 @@ export default function Home() {
 
   if (!me) return null;
 
+  const visibleSpecies = species.filter(isVisibleSpecies);
+
   return (
-    <main className="app-shell">
+    <main className={`app-shell app-shell-${activeTab}`}>
       <header className="app-header">
         <div className="brand">
           <div className="logo">🐟</div>
@@ -137,12 +159,12 @@ export default function Home() {
         </div>
       </header>
 
-      {activeTab === "profile" && (
+      {activeTab === "home" && (
         <ProfileTab
           user={me.user}
           stats={me.stats}
-          friends={me.friends}
           latestTrophy={trophies[0] ?? null}
+          recentTrophies={trophies.slice(0, 8)}
           onAddTrophy={openAddTrophy}
           onGoSpecies={() => setActiveTab("species")}
         />
@@ -162,19 +184,21 @@ export default function Home() {
 
       {activeTab === "species" && (
         <SpeciesTab
-          species={species}
+          species={visibleSpecies}
           onChanged={loadAll}
           onAddTrophy={openAddTrophy}
         />
       )}
 
-      {activeTab === "records" && <RecordsTab records={records} />}
+      {activeTab === "records" && <RecordsTab records={records.filter(isVisibleRecord)} />}
+
+      {activeTab === "friends" && <FriendsTab user={me.user} friends={me.friends} />}
 
       <BottomNav active={activeTab} onChange={setActiveTab} />
 
       {(showTrophyModal || editingTrophy) && (
         <Modal title={editingTrophy ? EDIT_TROPHY_TITLE : ADD_TROPHY_TITLE} onClose={closeTrophyModal}>
-          <AddTrophyForm species={species} initialTrophy={editingTrophy} onCreated={refreshAndCloseTrophyModal} />
+          <AddTrophyForm species={visibleSpecies} initialTrophy={editingTrophy} onCreated={refreshAndCloseTrophyModal} />
         </Modal>
       )}
     </main>

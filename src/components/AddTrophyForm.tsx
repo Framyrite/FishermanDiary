@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { FishSpecies, Trophy } from "@/types/domain";
 
@@ -15,6 +15,16 @@ function normalizeNumberInput(value: FormDataEntryValue | null) {
   return value.trim().replace(",", ".");
 }
 
+function normalizeSearch(value: string) {
+  return value.trim().toLowerCase().replaceAll("ё", "е");
+}
+
+function initialSpeciesName(species: FishSpecies[], trophy?: Trophy | null) {
+  if (trophy?.species?.name) return trophy.species.name;
+  if (!trophy?.species_id) return "";
+  return species.find((fish) => fish.id === trophy.species_id)?.name ?? "";
+}
+
 export function AddTrophyForm({
   species,
   onCreated,
@@ -26,9 +36,22 @@ export function AddTrophyForm({
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [photoName, setPhotoName] = useState("");
-
+  const [speciesQuery, setSpeciesQuery] = useState(() => initialSpeciesName(species, initialTrophy));
+  const [selectedSpeciesId, setSelectedSpeciesId] = useState(initialTrophy?.species_id ?? "");
+  const [speciesOpen, setSpeciesOpen] = useState(false);
   const isEdit = Boolean(initialTrophy);
+
+  const filteredSpecies = useMemo(() => {
+    const query = normalizeSearch(speciesQuery);
+    if (!query) return species.slice(0, 14);
+    return species.filter((fish) => normalizeSearch(fish.name).includes(query)).slice(0, 24);
+  }, [species, speciesQuery]);
+
+  function chooseSpecies(fish: FishSpecies) {
+    setSelectedSpeciesId(fish.id);
+    setSpeciesQuery(fish.name);
+    setSpeciesOpen(false);
+  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,7 +61,8 @@ export function AddTrophyForm({
     try {
       const formEl = event.currentTarget;
       const formData = new FormData(formEl);
-      const speciesId = String(formData.get("species_id") || "");
+      const exactSpecies = species.find((fish) => normalizeSearch(fish.name) === normalizeSearch(speciesQuery));
+      const speciesId = selectedSpeciesId || exactSpecies?.id || "";
       const weight = String(formData.get("weight_grams") || "");
       const length = String(formData.get("length_cm") || "");
 
@@ -48,14 +72,16 @@ export function AddTrophyForm({
         return;
       }
 
+      formData.set("species_id", speciesId);
+
       if (!isValidNumber(weight)) {
-        setError("Вес должен быть числом. Например: 2500 или 2500,5");
+        setError("Укажи вес числом");
         setPending(false);
         return;
       }
 
       if (!isValidNumber(length)) {
-        setError("Длина должна быть числом. Например: 56 или 56,5");
+        setError("Укажи длину числом");
         setPending(false);
         return;
       }
@@ -80,42 +106,45 @@ export function AddTrophyForm({
     <form className="form" onSubmit={submit} noValidate>
       {error && <div className="error">{error}</div>}
 
-      <label className="field">
-        <span>Фото</span>
-        <input
-          id="trophy-photo"
-          name="photo"
-          type="file"
-          accept="image/*"
-          style={{ display: "none" }}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            setPhotoName(file?.name || "");
-          }}
-        />
-        <div className="photo-field-row">
-          <label className="btn secondary small" htmlFor="trophy-photo">
-            Выбрать фото
-          </label>
-          <span className="muted small-text">
-            {photoName || (initialTrophy?.photo_url ? "Фото уже добавлено" : "Фото не выбрано")}
-          </span>
-        </div>
-      </label>
-
-      <label className="field">
+      <div className="field species-combobox-field">
         <span>Рыба <b className="required-star">*</b></span>
-        <select className="input" name="species_id" defaultValue={initialTrophy?.species_id || ""}>
-          <option value="" disabled>
-            Выбери вид
-          </option>
-          {species.map((fish) => (
-            <option key={fish.id} value={fish.id}>
-              {fish.name}
-            </option>
-          ))}
-        </select>
-      </label>
+        <div className={`species-combobox ${speciesOpen ? "open" : ""}`}>
+          <input type="hidden" name="species_id" value={selectedSpeciesId} />
+          <input
+            className="input species-combobox-input"
+            value={speciesQuery}
+            placeholder="Начни вводить вид"
+            autoComplete="off"
+            onBlur={() => window.setTimeout(() => setSpeciesOpen(false), 140)}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setSpeciesQuery(nextValue);
+              const exact = species.find((fish) => normalizeSearch(fish.name) === normalizeSearch(nextValue));
+              setSelectedSpeciesId(exact?.id ?? "");
+              setSpeciesOpen(true);
+            }}
+            onFocus={() => setSpeciesOpen(true)}
+            type="text"
+          />
+          <button className="species-combobox-toggle" type="button" aria-label="Показать виды рыб" onMouseDown={(event) => event.preventDefault()} onClick={() => setSpeciesOpen((value) => !value)}>
+            <span />
+          </button>
+
+          {speciesOpen ? (
+            <div className="species-combobox-menu" role="listbox">
+              {filteredSpecies.length > 0 ? (
+                filteredSpecies.map((fish) => (
+                  <button className="species-combobox-option" key={fish.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => chooseSpecies(fish)}>
+                    {fish.name}
+                  </button>
+                ))
+              ) : (
+                <div className="species-combobox-empty">Ничего не найдено</div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </div>
 
       <div className="form-grid">
         <label className="field">

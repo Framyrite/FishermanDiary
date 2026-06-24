@@ -3,65 +3,127 @@
 import { useMemo, useState } from "react";
 import { AppIcon } from "@/components/AppIcon";
 import { FishImage } from "@/components/FishImage";
-import { SpeciesBadge } from "@/components/SpeciesBadge";
 import { api } from "@/lib/api";
 import { formatLength, formatWeight } from "@/lib/format";
 import type { FishSpecies } from "@/types/domain";
 
-type Filter = "all" | "caught" | "uncaught" | "freshwater" | "caspian" | "marine";
+type Filter = "all" | "caught" | "uncaught" | "predator" | "peaceful" | "freshwater" | "marine";
 
 const filters: Array<{ key: Filter; label: string }> = [
   { key: "all", label: "Все" },
   { key: "caught", label: "Пойманные" },
   { key: "uncaught", label: "Не пойманные" },
+  { key: "predator", label: "Хищные" },
+  { key: "peaceful", label: "Мирные" },
   { key: "freshwater", label: "Пресноводные" },
-  { key: "caspian", label: "Каспий" },
   { key: "marine", label: "Морские" },
 ];
 
-function categoryArea(category: string) {
-  const lower = category.toLowerCase();
-  if (lower.includes("каспий")) return "caspian";
-  if (lower.includes("морск")) return "marine";
-  if (lower.includes("пресновод") || lower.includes("лосос") || lower.includes("осетр") || lower.includes("осётр") || lower.includes("проход")) return "freshwater";
-  return "freshwater";
+
+const popularOrder = [
+  "щука", "окунь", "судак", "карп", "карась серебряный", "карась золотой", "лещ", "плотва", "сом", "жерех",
+  "линь", "сазан", "форель", "хариус", "налим", "берш", "голавль", "красноперка", "краснопёрка", "амур белый",
+];
+
+function speciesPriority(fish: FishSpecies) {
+  const name = normalized(fish.name);
+  const exactIndex = popularOrder.findIndex((item) => normalized(item) === name);
+  if (exactIndex >= 0) return exactIndex;
+
+  const partialIndex = popularOrder.findIndex((item) => name.includes(normalized(item)));
+  if (partialIndex >= 0) return partialIndex + 30;
+
+  if (fish.caught_status !== "uncaught") return 80;
+  if (isPredator(fish)) return 110;
+  if (isPeaceful(fish)) return 130;
+  if (isMarine(fish)) return 180;
+  return 160;
+}
+
+function sortSpecies(items: FishSpecies[]) {
+  return [...items].sort((a, b) => {
+    const priorityDiff = speciesPriority(a) - speciesPriority(b);
+    if (priorityDiff !== 0) return priorityDiff;
+    return a.name.localeCompare(b.name, "ru");
+  });
+}
+
+const predatorNames = ["щука", "окунь", "судак", "берш", "сом", "жерех", "налим", "форель", "таймень", "лосось", "хариус", "голец", "тунец", "сибас", "треска", "палтус", "луфарь", "сарган"];
+
+function normalized(value?: string | null) {
+  return (value ?? "").trim().toLowerCase().replaceAll("ё", "е");
+}
+
+function isCaspianFish(fish: FishSpecies) {
+  const value = `${normalized(fish.name)} ${normalized(fish.category)} ${normalized(fish.description)}`;
+  return value.includes("каспий") || ["вобла", "кутум", "шемая"].some((name) => normalized(fish.name) === name);
+}
+
+function isGenericCrucian(fish: FishSpecies) {
+  return normalized(fish.name) === "карась";
+}
+
+function isPredator(fish: FishSpecies) {
+  const name = normalized(fish.name);
+  const category = normalized(fish.category);
+  return category.includes("хищ") || predatorNames.some((item) => name.includes(normalized(item)));
+}
+
+function isMarine(fish: FishSpecies) {
+  return normalized(fish.category).includes("морск");
+}
+
+function isFreshwater(fish: FishSpecies) {
+  const category = normalized(fish.category);
+  return !isMarine(fish) || category.includes("пресновод") || category.includes("лосос") || category.includes("осетр") || category.includes("проход");
+}
+
+function isPeaceful(fish: FishSpecies) {
+  const category = normalized(fish.category);
+  return category.includes("мир") || category.includes("мелоч") || (!isPredator(fish) && !isMarine(fish));
 }
 
 function habitatLabel(category: string) {
-  const lower = category.toLowerCase();
-  if (lower.includes("каспий")) return "Каспийский бассейн";
-  if (lower.includes("морск")) return "Морская рыба";
-  if (lower.includes("проход")) return "Проходная рыба";
-  if (lower.includes("осетр") || lower.includes("осётр")) return "Осетровые";
-  if (lower.includes("лосос")) return "Лососёвые";
-  return "Пресная вода";
+  const lower = normalized(category);
+  if (lower.includes("морск")) return "Морская";
+  if (lower.includes("проход")) return "Проходная";
+  if (lower.includes("осетр")) return "Осетровая";
+  if (lower.includes("лосос")) return "Лососёвая";
+  return "Пресноводная";
 }
 
-function recordBadge(fish: FishSpecies) {
-  if (!fish.best_weight_grams) return null;
-  return <span className="badge red">Рекорд</span>;
+function trophyWord(count: number) {
+  if (count % 10 === 1 && count % 100 !== 11) return "трофей";
+  if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return "трофея";
+  return "трофеев";
 }
 
 export function SpeciesTab({ species, onChanged, onAddTrophy }: { species: FishSpecies[]; onChanged: () => void; onAddTrophy: () => void }) {
   const [filter, setFilter] = useState<Filter>("all");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
 
-  const caughtCount = species.filter((fish) => fish.caught_status !== "uncaught").length;
+  const cleanSpecies = useMemo(() => species.filter((fish) => !isCaspianFish(fish) && !isGenericCrucian(fish)), [species]);
+  const caughtCount = cleanSpecies.filter((fish) => fish.caught_status !== "uncaught").length;
 
   const filtered = useMemo(() => {
-    if (filter === "caught") return species.filter((fish) => fish.caught_status !== "uncaught");
-    if (filter === "uncaught") return species.filter((fish) => fish.caught_status === "uncaught");
-    if (filter === "freshwater") return species.filter((fish) => categoryArea(fish.category) === "freshwater");
-    if (filter === "caspian") return species.filter((fish) => categoryArea(fish.category) === "caspian");
-    if (filter === "marine") return species.filter((fish) => categoryArea(fish.category) === "marine");
-    return species;
-  }, [filter, species]);
+    const search = normalized(query);
+    let result = cleanSpecies.filter((fish) => {
+      if (!search) return true;
+      const haystack = normalized(`${fish.name} ${fish.category} ${fish.description ?? ""}`);
+      return haystack.includes(search);
+    });
 
-  const grouped = filtered.reduce<Record<string, FishSpecies[]>>((acc, fish) => {
-    acc[fish.category] = acc[fish.category] ?? [];
-    acc[fish.category].push(fish);
-    return acc;
-  }, {});
+    if (filter === "caught") result = result.filter((fish) => fish.caught_status !== "uncaught");
+    if (filter === "uncaught") result = result.filter((fish) => fish.caught_status === "uncaught");
+    if (filter === "predator") result = result.filter(isPredator);
+    if (filter === "peaceful") result = result.filter(isPeaceful);
+    if (filter === "freshwater") result = result.filter(isFreshwater);
+    if (filter === "marine") result = result.filter(isMarine);
+
+    return sortSpecies(result);
+  }, [cleanSpecies, filter, query]);
 
   async function mark(fish: FishSpecies, caught: boolean) {
     setPendingId(fish.id);
@@ -79,18 +141,44 @@ export function SpeciesTab({ species, onChanged, onAddTrophy }: { species: FishS
   }
 
   return (
-    <div className="stack">
-      <section className="card compact-card">
-        <div className="section-title" style={{ margin: 0 }}>
-          <div>
-            <h2>Виды рыб</h2>
-            <p className="muted small-text">Отмечай старые виды, даже если нет фото и даты.</p>
-          </div>
-          <span className="badge ok">{caughtCount} / {species.length}</span>
+    <div className="page-screen species-page">
+      <section className="page-topbar">
+        <div>
+          <h1>Виды рыб</h1>
+          <p>Коллекция пойманных видов и будущих целей.</p>
+        </div>
+        <div className="page-topbar-actions">
+          <button
+            className={`page-icon-btn ${searchOpen ? "active" : ""}`}
+            type="button"
+            aria-label="Поиск"
+            aria-pressed={searchOpen}
+            onClick={() => setSearchOpen((value) => !value)}
+          >
+            <AppIcon name="search" size={22} />
+          </button>
         </div>
       </section>
 
-      <div className="filters">
+      {searchOpen ? (
+        <label className="premium-search-field">
+          <AppIcon name="search" size={18} />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти вид рыбы" autoFocus />
+          {query ? <button type="button" onClick={() => setQuery("")}>×</button> : null}
+        </label>
+      ) : null}
+
+      <div className="species-progress-card">
+        <div>
+          <b>{caughtCount}</b>
+          <span>из {cleanSpecies.length} видов поймано</span>
+        </div>
+        <div className="species-progress-track">
+          <i style={{ width: `${cleanSpecies.length ? Math.min(100, Math.round((caughtCount / cleanSpecies.length) * 100)) : 0}%` }} />
+        </div>
+      </div>
+
+      <div className="filters premium-filters" aria-label="Фильтры видов рыб">
         {filters.map((item) => (
           <button key={item.key} className={`chip ${filter === item.key ? "active" : ""}`} onClick={() => setFilter(item.key)} type="button">
             {item.label}
@@ -98,63 +186,58 @@ export function SpeciesTab({ species, onChanged, onAddTrophy }: { species: FishS
         ))}
       </div>
 
-      {filtered.length === 0 ? <div className="empty">Тут пока пусто.</div> : null}
+      {filtered.length === 0 ? <div className="empty premium-empty">Ничего не найдено.</div> : null}
 
-      {Object.entries(grouped).map(([category, items]) => (
-        <section key={category} className="stack species-group">
-          <div className="section-title slim-title">
-            <h2>{category}</h2>
-            <span className="badge">{items.length}</span>
-          </div>
-          <div className="fish-list">
-            {items.map((fish) => {
-              const isCaught = fish.caught_status !== "uncaught";
-              const hasTrophy = fish.trophy_count > 0;
+      <div className="premium-list species-scroll-list">
+        {filtered.map((fish) => {
+          const isCaught = fish.caught_status !== "uncaught";
+          const hasTrophy = fish.trophy_count > 0;
 
-              return (
-                <article className="fish-row" key={fish.id}>
-                  <FishImage name={fish.name} imageUrl={fish.image_url} />
-                  <div className="fish-info">
-                    <div className="fish-name">{fish.name}</div>
-                    <div className="muted tiny-text">{habitatLabel(fish.category)}</div>
-                    <div className="fish-status-line">
-                      {hasTrophy ? <span className="badge ok">{fish.trophy_count} трофей</span> : <SpeciesBadge status={fish.caught_status} />}
-                      {recordBadge(fish)}
-                    </div>
-                    {hasTrophy && (
-                      <div className="muted small-text fish-stats">
-                        {formatWeight(fish.best_weight_grams)} · {formatLength(fish.best_length_cm)}
-                      </div>
-                    )}
+          return (
+            <article className="premium-row species-premium-row" key={fish.id}>
+              <div className="premium-fish-art species-row-art">
+                <FishImage name={fish.name} imageUrl={fish.image_url} />
+              </div>
+              <div className="premium-row-main">
+                <div className="premium-row-titleline">
+                  <h2>{fish.name}</h2>
+                  <div className="species-count-box">
+                    <b>{fish.trophy_count}</b>
+                    <span>{trophyWord(fish.trophy_count)}</span>
                   </div>
-                  <div className="species-actions">
-                    {isCaught ? (
-                      <button
-                        className="species-action caught"
-                        disabled={pendingId === fish.id || fish.trophy_count > 0}
-                        onClick={() => mark(fish, false)}
-                        type="button"
-                        title={fish.trophy_count > 0 ? "Сначала удали трофеи этого вида" : "Убрать отметку"}
-                      >
-                        <AppIcon name="check" size={13} />
-                        Поймана
-                      </button>
-                    ) : (
-                      <button className="species-action mark" disabled={pendingId === fish.id} onClick={() => mark(fish, true)} type="button">
-                        Ловил
-                      </button>
-                    )}
-                    <button className="species-action trophy" onClick={onAddTrophy} type="button">
-                      <AppIcon name="plus" size={13} />
-                      {hasTrophy ? "Ещё" : "Трофей"}
+                </div>
+                <div className="premium-row-place">
+                  {isPredator(fish) ? "Хищная" : "Мирная"} · {habitatLabel(fish.category)}
+                </div>
+                <div className="species-status-line">
+                  {isCaught ? <span className="caught-status"><AppIcon name="check" size={13} />Поймана</span> : <span className="uncaught-status">Не поймана</span>}
+                  {hasTrophy && <span className="premium-row-meta"><AppIcon name="weight" size={13} />{formatWeight(fish.best_weight_grams)} · {formatLength(fish.best_length_cm)}</span>}
+                </div>
+                <div className="premium-inline-actions species-inline-actions">
+                  {isCaught ? (
+                    <button
+                      className="glass-mini-btn"
+                      disabled={pendingId === fish.id || fish.trophy_count > 0}
+                      onClick={() => mark(fish, false)}
+                      type="button"
+                      title={fish.trophy_count > 0 ? "Сначала удали трофеи этого вида" : "Убрать отметку"}
+                    >
+                      Поймана
                     </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+                  ) : (
+                    <button className="glass-mini-btn" disabled={pendingId === fish.id} onClick={() => mark(fish, true)} type="button">
+                      Ловил
+                    </button>
+                  )}
+                  <button className="glass-mini-btn accent" onClick={onAddTrophy} type="button">
+                    + Трофей
+                  </button>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </div>
   );
 }

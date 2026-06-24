@@ -1,12 +1,13 @@
 import { AppIcon, type AppIconName } from "@/components/AppIcon";
 
-export type TabKey = "profile" | "trophies" | "species" | "records";
+export type TabKey = "home" | "trophies" | "species" | "records" | "friends";
 
 const tabs: Array<{ key: TabKey; label: string; icon: AppIconName }> = [
-  { key: "profile", label: "Профиль", icon: "profile" },
+  { key: "home", label: "Главная", icon: "home" },
   { key: "trophies", label: "Трофеи", icon: "trophy" },
   { key: "species", label: "Виды", icon: "fish" },
   { key: "records", label: "Рекорды", icon: "records" },
+  { key: "friends", label: "Друзья", icon: "friends" },
 ];
 
 export function BottomNav({ active, onChange }: { active: TabKey; onChange: (tab: TabKey) => void }) {

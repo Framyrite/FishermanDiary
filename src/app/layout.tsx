@@ -1,6 +1,7 @@
-﻿import type { Metadata, Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
+import "./ui-polish.css";
 
 export const metadata: Metadata = {
   title: "Fisherman Diary",
@@ -12,7 +13,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#0c2f22",
+  themeColor: "#071c2a",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
